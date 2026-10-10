@@ -23,5 +23,6 @@ Members share their XP through hidden addon messages, so a member's bar fills on
 | `/gxp alpha <0-1>` | Background opacity |
 | `/gxp test` | Preview with sample members |
 | `/gxp reset` | Restore defaults |
+| `/gxp debug` | Print what is sent and received, for troubleshooting |
 
 The bars only appear while you are in a group. Updates are held during combat and sent when it ends.

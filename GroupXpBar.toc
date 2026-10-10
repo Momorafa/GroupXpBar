@@ -2,7 +2,7 @@
 ## Title: Group XP
 ## Notes: Shows an experience bar for every member of your group.
 ## Author: Moham
-## Version: 1.0.0
+## Version: 1.0.1
 ## SavedVariables: GroupXpBarDB
 
 GroupXpBar.lua

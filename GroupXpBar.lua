@@ -38,6 +38,10 @@ local function Print(msg)
     print("|cff0091edGroup XP|r: " .. msg)
 end
 
+local function Debug(msg)
+    if db and db.debug then Print("|cff9ca3af" .. msg .. "|r") end
+end
+
 local function Secret(v)
     return issecretvalue and issecretvalue(v)
 end
@@ -72,10 +76,13 @@ local function Send()
     end
     if askQueued then
         askQueued = false
-        C_ChatInfo.SendAddonMessage(PREFIX, ASK, channel)
+        local result = C_ChatInfo.SendAddonMessage(PREFIX, ASK, channel)
+        Debug("sent ask on " .. channel .. ", result " .. tostring(result))
     end
     local own = Own()
-    C_ChatInfo.SendAddonMessage(PREFIX, MSG_FORMAT:format(UnitGUID("player"), own.level, own.xp, own.max), channel)
+    local msg = MSG_FORMAT:format(UnitGUID("player"), own.level, own.xp, own.max)
+    local result = C_ChatInfo.SendAddonMessage(PREFIX, msg, channel)
+    Debug("sent \"" .. msg .. "\" on " .. channel .. ", result " .. tostring(result))
 end
 
 -- Batches bursts of events (a kill and a level-up together) into one message.
@@ -118,11 +125,17 @@ local function Roster()
 end
 
 -- Only trust a message whose sender is the group member owning that GUID.
+-- The sender can arrive as "Name", "Name-Realm" or "Name Realm", so compare only the name part.
 local function SenderOwns(sender, guid)
-    local short = sender:match("^([^%-]+)")
+    local short = sender:match("^([^%-%s]+)")
     for _, m in ipairs(Roster()) do
-        if m.guid == guid then return m.name == short end
+        if m.guid == guid then
+            if m.name == short or m.name == sender then return true end
+            Debug("sender \"" .. sender .. "\" does not match " .. m.name)
+            return false
+        end
     end
+    Debug("GUID " .. guid .. " from \"" .. sender .. "\" is not in your group")
     return false
 end
 
@@ -298,7 +311,9 @@ end
 
 local function OnAddonMessage(prefix, msg, channel, sender)
     if Secret(prefix) or Secret(msg) or Secret(channel) or Secret(sender) then return end
-    if prefix ~= PREFIX or not GROUP_CHANNELS[channel] then return end
+    if prefix ~= PREFIX then return end
+    Debug("got \"" .. msg .. "\" from \"" .. sender .. "\" on " .. channel)
+    if not GROUP_CHANNELS[channel] then return end
     if msg == ASK then
         SendSoon()
         return
@@ -363,6 +378,7 @@ local HELP = {
     "/gxp alpha <0-1> - background opacity",
     "/gxp test - preview with sample members",
     "/gxp reset - restore default settings and position",
+    "/gxp debug - print what is sent and received (for troubleshooting)",
 }
 
 SLASH_GROUPXP1 = "/gxp"
@@ -385,6 +401,15 @@ SlashCmdList.GROUPXP = function(input)
         db.scale = math.min(2, math.max(0.5, n))
     elseif cmd == "alpha" and n then
         db.bgAlpha = math.min(1, math.max(0, n))
+    elseif cmd == "debug" then
+        db.debug = not db.debug
+        Print("Debug messages " .. (db.debug and "on." or "off."))
+        if db.debug then
+            Print("In group: " .. tostring(IsInGroup()) .. ", channel: " .. tostring(Channel())
+                .. ", prefix registered: " .. tostring(C_ChatInfo.IsAddonMessagePrefixRegistered(PREFIX)))
+            SendSoon(true)
+        end
+        return
     elseif cmd == "test" then
         testMode = not testMode
         Print("Test mode " .. (testMode and "on." or "off."))
